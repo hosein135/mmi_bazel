@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+for mod in "$@"; do
+  echo "------- Doing $mod -------"
+  make -e -C "m/$mod" -k
+done

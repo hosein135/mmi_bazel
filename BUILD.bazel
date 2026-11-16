@@ -1,0 +1,33 @@
+load("//bazel:mmi_vendor.bzl", "mmi_vendor")
+
+package(default_visibility = ["//visibility:public"])
+
+# Nix prepares @mmi_nix_env. This target compiles the CAD sources with it.
+mmi_vendor(
+    name = "mmi-vendor",
+    srcs = glob(
+        [
+            "vendor/mmi/**",
+            "vendor/mmi/**/.*",
+            "vendor/mmi/.*",
+            "nix/rebuild/**",
+            "nix/rebuild/**/.*",
+            "nix/x11/sort-font-index.sh",
+        ],
+    ),
+    driver = "//bazel:compile.sh",
+    env_bash = "@mmi_nix_env//:mmi-env-bash",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+alias(
+    name = "bazel-env",
+    actual = "@mmi_nix_env//:mmi-env-bash",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)

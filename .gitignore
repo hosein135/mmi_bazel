@@ -1,0 +1,25 @@
+# Local / generated
+.mmi-bootstrap/
+/bazel-*
+data/home/*
+!data/home/.gitkeep
+data/pdks/*
+!data/pdks/.gitkeep
+data/workspace/*
+!data/workspace/.gitkeep
+/result
+/result-*
+.tmp-*
+
+# Nix store symlink from `nix build -o vendor/result`
+vendor/result
+vendor/result-*
+
+# Rebuilt CAD binaries (Nix store only; do not commit)
+vendor/mmi/bin/
+
+# Do not commit the original archive if it is dropped here again
+vendor/*.tar.gz
+vendor/*.tar
+mmi_pd_*.tar.gz
+mmi_pd_*.tar
