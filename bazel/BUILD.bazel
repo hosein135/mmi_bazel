@@ -1,2 +1,6 @@
 # Starlark and the compile driver live in this package.
 # The build target is //:mmi-vendor.
+exports_files(
+    ["compile.sh"],
+    visibility = ["//visibility:public"],
+)
