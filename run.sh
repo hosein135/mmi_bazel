@@ -134,21 +134,24 @@ case ":${PATH}:" in
   *":${dest}:"*) on_path=1 ;;
 esac
 
-user_rc() {
-  case "${SHELL:-}" in
-    */zsh) printf '%s\n' "${ZDOTDIR:-$HOME}/.zshrc" ;;
-    *) printf '%s\n' "$HOME/.bashrc" ;;
-  esac
-}
-
-need_new_shell=0
-if [ "$installed_ours" -eq 1 ] && [ "$on_path" -eq 0 ]; then
-  rc=$(user_rc)
+# The block stays above bashrc's non-interactive "return", so
+# "source ~/.bashrc" from this script actually updates PATH.
+install_path_block() {
+  local rc=$1 tmp body
   mkdir -p "$(dirname "$rc")"
   touch "$rc"
-  if ! grep -qF '# >>> mmi-bazel path >>>' "$rc"; then
-    printf '\n' >> "$rc"
-    cat >> "$rc" << 'EOF'
+  tmp=$(mktemp)
+  if grep -qF '# >>> mmi-bazel path >>>' "$rc"; then
+    awk '
+      $0 == "# >>> mmi-bazel path >>>" { skip=1; next }
+      $0 == "# <<< mmi-bazel path <<<" { skip=0; next }
+      !skip { print }
+    ' "$rc" > "$tmp"
+  else
+    cat "$rc" > "$tmp"
+  fi
+  body=$(mktemp)
+  cat > "$body" << 'EOF'
 # >>> mmi-bazel path >>>
 case ":${PATH}:" in
   *":${HOME}/.local/bin:"*) ;;
@@ -156,10 +159,36 @@ case ":${PATH}:" in
 esac
 export PATH
 # <<< mmi-bazel path <<<
+
 EOF
-  fi
-  need_new_shell=1
+  cat "$tmp" >> "$body"
+  mv "$body" "$rc"
+  rm -f "$tmp"
+}
+
+bashrc="$HOME/.bashrc"
+parent_has_path=$on_path
+if [ "$installed_ours" -eq 1 ] && [ "$parent_has_path" -eq 0 ]; then
+  install_path_block "$bashrc"
+  case "${SHELL:-}" in
+    */zsh) install_path_block "${ZDOTDIR:-$HOME}/.zshrc" ;;
+  esac
 fi
+
+if [ -f "$bashrc" ]; then
+  set +e
+  set +u
+  set +o pipefail
+  # Loaded at top level so a non-interactive "return" in bashrc does not
+  # leave this script.
+  source "$bashrc"
+  set -euo pipefail
+fi
+
+case ":${PATH}:" in
+  *":${dest}:"*) on_path=1 ;;
+  *) on_path=0 ;;
+esac
 
 if [ ${#added[@]} -gt 0 ]; then
   echo "Added to PATH: ${added[*]}"
@@ -167,12 +196,14 @@ fi
 if [ ${#skipped[@]} -gt 0 ]; then
   echo "Already on PATH: ${skipped[*]}"
 fi
-if [ ${#added[@]} -eq 0 ] && [ ${#skipped[@]} -eq 0 ] && [ "$on_path" -eq 1 ]; then
+if [ ${#added[@]} -eq 0 ] && [ ${#skipped[@]} -eq 0 ] && [ "$parent_has_path" -eq 1 ]; then
   echo "CAD tools are already on PATH."
 fi
-if [ "$need_new_shell" -eq 1 ]; then
-  echo "${dest} was not on PATH. New shells pick it up from ${rc}."
-  echo "Open a new terminal, or run: source ${rc}"
-elif [ "$on_path" -eq 1 ] && [ ${#added[@]} -gt 0 ]; then
+if [ -f "$bashrc" ]; then
+  echo "Sourced ${bashrc}."
+fi
+if [ "$parent_has_path" -eq 1 ] && [ ${#added[@]} -gt 0 ]; then
   echo "You can run them in this terminal."
+elif [ "$parent_has_path" -eq 0 ] && [ "$installed_ours" -eq 1 ]; then
+  echo "Open a new terminal to use the CAD tools."
 fi
